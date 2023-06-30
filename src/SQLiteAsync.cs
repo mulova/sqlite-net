@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2012-2021 Krueger Systems, Inc.
+// Copyright (c) 2012-2019 Krueger Systems, Inc.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,103 +26,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 
-#pragma warning disable 1591 // XML Doc Comments
 
 namespace SQLite
 {
-	public interface ISQLiteAsyncConnection
-	{
-		string DatabasePath { get; }
-		int LibVersionNumber { get; }
-		string DateTimeStringFormat { get; }
-		bool StoreDateTimeAsTicks { get; }
-		bool StoreTimeSpanAsTicks { get; }
-		bool Trace { get; set; }
-		Action<string> Tracer { get; set; }
-		bool TimeExecution { get; set; }
-		IEnumerable<TableMapping> TableMappings { get; }
-
-		Task BackupAsync (string destinationDatabasePath, string databaseName = "main");
-		Task CloseAsync ();
-		Task<int> CreateIndexAsync (string tableName, string columnName, bool unique = false);
-		Task<int> CreateIndexAsync (string indexName, string tableName, string columnName, bool unique = false);
-		Task<int> CreateIndexAsync (string tableName, string[] columnNames, bool unique = false);
-		Task<int> CreateIndexAsync (string indexName, string tableName, string[] columnNames, bool unique = false);
-		Task<int> CreateIndexAsync<T> (Expression<Func<T, object>> property, bool unique = false);
-		Task<CreateTableResult> CreateTableAsync<T> (CreateFlags createFlags = CreateFlags.None) where T : new();
-		Task<CreateTableResult> CreateTableAsync (Type ty, CreateFlags createFlags = CreateFlags.None);
-		Task<CreateTablesResult> CreateTablesAsync<T, T2> (CreateFlags createFlags = CreateFlags.None)
-			where T : new()
-			where T2 : new();
-		Task<CreateTablesResult> CreateTablesAsync<T, T2, T3> (CreateFlags createFlags = CreateFlags.None)
-			where T : new()
-			where T2 : new()
-			where T3 : new();
-		Task<CreateTablesResult> CreateTablesAsync<T, T2, T3, T4> (CreateFlags createFlags = CreateFlags.None)
-			where T : new()
-			where T2 : new()
-			where T3 : new()
-			where T4 : new();
-		Task<CreateTablesResult> CreateTablesAsync<T, T2, T3, T4, T5> (CreateFlags createFlags = CreateFlags.None)
-			where T : new()
-			where T2 : new()
-			where T3 : new()
-			where T4 : new()
-			where T5 : new();
-		Task<CreateTablesResult> CreateTablesAsync (CreateFlags createFlags = CreateFlags.None, params Type[] types);
-		Task<IEnumerable<T>> DeferredQueryAsync<T> (string query, params object[] args) where T : new();
-		Task<IEnumerable<object>> DeferredQueryAsync (TableMapping map, string query, params object[] args);
-		Task<int> DeleteAllAsync<T> ();
-		Task<int> DeleteAllAsync (TableMapping map);
-		Task<int> DeleteAsync (object objectToDelete);
-		Task<int> DeleteAsync<T> (object primaryKey);
-		Task<int> DeleteAsync (object primaryKey, TableMapping map);
-		Task<int> DropTableAsync<T> () where T : new();
-		Task<int> DropTableAsync (TableMapping map);
-		Task EnableLoadExtensionAsync (bool enabled);
-		Task EnableWriteAheadLoggingAsync ();
-		Task<int> ExecuteAsync (string query, params object[] args);
-		Task<T> ExecuteScalarAsync<T> (string query, params object[] args);
-		Task<T> FindAsync<T> (object pk) where T : new();
-		Task<object> FindAsync (object pk, TableMapping map);
-		Task<T> FindAsync<T> (Expression<Func<T, bool>> predicate) where T : new();
-		Task<T> FindWithQueryAsync<T> (string query, params object[] args) where T : new();
-		Task<object> FindWithQueryAsync (TableMapping map, string query, params object[] args);
-		Task<T> GetAsync<T> (object pk) where T : new();
-		Task<object> GetAsync (object pk, TableMapping map);
-		Task<T> GetAsync<T> (Expression<Func<T, bool>> predicate) where T : new();
-		TimeSpan GetBusyTimeout ();
-		SQLiteConnectionWithLock GetConnection ();
-		Task<TableMapping> GetMappingAsync (Type type, CreateFlags createFlags = CreateFlags.None);
-		Task<TableMapping> GetMappingAsync<T> (CreateFlags createFlags = CreateFlags.None) where T : new();
-		Task<List<SQLiteConnection.ColumnInfo>> GetTableInfoAsync (string tableName);
-		Task<int> InsertAllAsync (IEnumerable objects, bool runInTransaction = true);
-		Task<int> InsertAllAsync (IEnumerable objects, string extra, bool runInTransaction = true);
-		Task<int> InsertAllAsync (IEnumerable objects, Type objType, bool runInTransaction = true);
-		Task<int> InsertAsync (object obj);
-		Task<int> InsertAsync (object obj, Type objType);
-		Task<int> InsertAsync (object obj, string extra);
-		Task<int> InsertAsync (object obj, string extra, Type objType);
-		Task<int> InsertOrReplaceAsync (object obj);
-		Task<int> InsertOrReplaceAsync (object obj, Type objType);
-		Task<List<T>> QueryAsync<T> (string query, params object[] args) where T : new();
-		Task<List<object>> QueryAsync (TableMapping map, string query, params object[] args);
-		Task<List<T>> QueryScalarsAsync<T> (string query, params object[] args);
-		Task RunInTransactionAsync (Action<SQLiteConnection> action);
-		Task SetBusyTimeoutAsync (TimeSpan value);
-		AsyncTableQuery<T> Table<T> () where T : new();
-		Task<int> UpdateAllAsync (IEnumerable objects, bool runInTransaction = true);
-		Task<int> UpdateAsync (object obj);
-		Task<int> UpdateAsync (object obj, Type objType);
-	}
-
 	/// <summary>
 	/// A pooled asynchronous connection to a SQLite database.
 	/// </summary>
 	public partial class SQLiteAsyncConnection
-		: ISQLiteAsyncConnection
 	{
 		readonly SQLiteConnectionString _connectionString;
 
@@ -207,7 +119,7 @@ namespace SQLite
 		/// <summary>
 		/// Sets the amount of time to wait for a table to become unlocked.
 		/// </summary>
-		public Task SetBusyTimeoutAsync (TimeSpan value)
+		public UniTask SetBusyTimeoutAsync (TimeSpan value)
 		{
 			return ReadAsync<object> (conn => {
 				conn.BusyTimeout = value;
@@ -218,9 +130,9 @@ namespace SQLite
 		/// <summary>
 		/// Enables the write ahead logging. WAL is significantly faster in most scenarios
 		/// by providing better concurrency and better disk IO performance than the normal
-		/// journal mode. You only need to call this function once in the lifetime of the database.
+		/// jounral mode. You only need to call this function once in the lifetime of the database.
 		/// </summary>
-		public Task EnableWriteAheadLoggingAsync ()
+		public UniTask EnableWriteAheadLoggingAsync ()
 		{
 			return WriteAsync<object> (conn => {
 				conn.EnableWriteAheadLogging ();
@@ -232,7 +144,7 @@ namespace SQLite
 		/// Whether to store DateTime properties as ticks (true) or strings (false).
 		/// </summary>
 		public bool StoreDateTimeAsTicks => GetConnection ().StoreDateTimeAsTicks;
-
+		
 		/// <summary>
 		/// Whether to store TimeSpan properties as ticks (true) or strings (false).
 		/// </summary>
@@ -292,57 +204,41 @@ namespace SQLite
 			return SQLiteConnectionPool.Shared.GetConnection (_connectionString);
 		}
 
-		SQLiteConnectionWithLock GetConnectionAndTransactionLock (out object transactionLock)
-		{
-			return SQLiteConnectionPool.Shared.GetConnectionAndTransactionLock (_connectionString, out transactionLock);
-		}
-
 		/// <summary>
 		/// Closes any pooled connections used by the database.
 		/// </summary>
-		public Task CloseAsync ()
+		public UniTask CloseAsync ()
 		{
-			return Task.Factory.StartNew (() => {
+			return UniTask.RunOnThreadPool (() => {
 				SQLiteConnectionPool.Shared.CloseConnection (_connectionString);
-			}, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+			});
 		}
 
-		Task<T> ReadAsync<T> (Func<SQLiteConnectionWithLock, T> read)
+		UniTask<T> ReadAsync<T> (Func<SQLiteConnectionWithLock, T> read)
 		{
-			return Task.Factory.StartNew (() => {
+			return UniTask.RunOnThreadPool (() => {
 				var conn = GetConnection ();
 				using (conn.Lock ()) {
 					return read (conn);
 				}
-			}, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+			});
+			
 		}
 
-		Task<T> WriteAsync<T> (Func<SQLiteConnectionWithLock, T> write)
+		UniTask<T> WriteAsync<T> (Func<SQLiteConnectionWithLock, T> write)
 		{
-			return Task.Factory.StartNew (() => {
+			return UniTask.RunOnThreadPool (() => {
 				var conn = GetConnection ();
 				using (conn.Lock ()) {
 					return write (conn);
 				}
-			}, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
-		}
-
-		Task<T> TransactAsync<T> (Func<SQLiteConnectionWithLock, T> transact)
-		{
-			return Task.Factory.StartNew (() => {
-				var conn = GetConnectionAndTransactionLock (out var transactionLock);
-				lock (transactionLock) {
-					using (conn.Lock ()) {
-						return transact (conn);
-					}
-				}
-			}, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+			});
 		}
 
 		/// <summary>
 		/// Enable or disable extension loading.
 		/// </summary>
-		public Task EnableLoadExtensionAsync (bool enabled)
+		public UniTask EnableLoadExtensionAsync (bool enabled)
 		{
 			return WriteAsync<object> (conn => {
 				conn.EnableLoadExtension (enabled);
@@ -359,7 +255,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated.
 		/// </returns>
-		public Task<CreateTableResult> CreateTableAsync<T> (CreateFlags createFlags = CreateFlags.None)
+		public UniTask<CreateTableResult> CreateTableAsync<T> (CreateFlags createFlags = CreateFlags.None)
 			where T : new()
 		{
 			return WriteAsync (conn => conn.CreateTable<T> (createFlags));
@@ -376,7 +272,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated.
 		/// </returns>
-		public Task<CreateTableResult> CreateTableAsync (Type ty, CreateFlags createFlags = CreateFlags.None)
+		public UniTask<CreateTableResult> CreateTableAsync (Type ty, CreateFlags createFlags = CreateFlags.None)
 		{
 			return WriteAsync (conn => conn.CreateTable (ty, createFlags));
 		}
@@ -390,7 +286,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated for each type.
 		/// </returns>
-		public Task<CreateTablesResult> CreateTablesAsync<T, T2> (CreateFlags createFlags = CreateFlags.None)
+		public UniTask<CreateTablesResult> CreateTablesAsync<T, T2> (CreateFlags createFlags = CreateFlags.None)
 			where T : new()
 			where T2 : new()
 		{
@@ -406,7 +302,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated for each type.
 		/// </returns>
-		public Task<CreateTablesResult> CreateTablesAsync<T, T2, T3> (CreateFlags createFlags = CreateFlags.None)
+		public UniTask<CreateTablesResult> CreateTablesAsync<T, T2, T3> (CreateFlags createFlags = CreateFlags.None)
 			where T : new()
 			where T2 : new()
 			where T3 : new()
@@ -423,7 +319,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated for each type.
 		/// </returns>
-		public Task<CreateTablesResult> CreateTablesAsync<T, T2, T3, T4> (CreateFlags createFlags = CreateFlags.None)
+		public UniTask<CreateTablesResult> CreateTablesAsync<T, T2, T3, T4> (CreateFlags createFlags = CreateFlags.None)
 			where T : new()
 			where T2 : new()
 			where T3 : new()
@@ -441,7 +337,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated for each type.
 		/// </returns>
-		public Task<CreateTablesResult> CreateTablesAsync<T, T2, T3, T4, T5> (CreateFlags createFlags = CreateFlags.None)
+		public UniTask<CreateTablesResult> CreateTablesAsync<T, T2, T3, T4, T5> (CreateFlags createFlags = CreateFlags.None)
 			where T : new()
 			where T2 : new()
 			where T3 : new()
@@ -460,7 +356,7 @@ namespace SQLite
 		/// <returns>
 		/// Whether the table was created or migrated for each type.
 		/// </returns>
-		public Task<CreateTablesResult> CreateTablesAsync (CreateFlags createFlags = CreateFlags.None, params Type[] types)
+		public UniTask<CreateTablesResult> CreateTablesAsync (CreateFlags createFlags = CreateFlags.None, params Type[] types)
 		{
 			return WriteAsync (conn => conn.CreateTables (createFlags, types));
 		}
@@ -468,7 +364,7 @@ namespace SQLite
 		/// <summary>
 		/// Executes a "drop table" on the database.  This is non-recoverable.
 		/// </summary>
-		public Task<int> DropTableAsync<T> ()
+		public UniTask<int> DropTableAsync<T> ()
 			where T : new()
 		{
 			return WriteAsync (conn => conn.DropTable<T> ());
@@ -480,7 +376,7 @@ namespace SQLite
 		/// <param name="map">
 		/// The TableMapping used to identify the table.
 		/// </param>
-		public Task<int> DropTableAsync (TableMapping map)
+		public UniTask<int> DropTableAsync (TableMapping map)
 		{
 			return WriteAsync (conn => conn.DropTable (map));
 		}
@@ -491,8 +387,7 @@ namespace SQLite
 		/// <param name="tableName">Name of the database table</param>
 		/// <param name="columnName">Name of the column to index</param>
 		/// <param name="unique">Whether the index should be unique</param>
-		/// <returns>Zero on success.</returns>
-		public Task<int> CreateIndexAsync (string tableName, string columnName, bool unique = false)
+		public UniTask<int> CreateIndexAsync (string tableName, string columnName, bool unique = false)
 		{
 			return WriteAsync (conn => conn.CreateIndex (tableName, columnName, unique));
 		}
@@ -504,8 +399,7 @@ namespace SQLite
 		/// <param name="tableName">Name of the database table</param>
 		/// <param name="columnName">Name of the column to index</param>
 		/// <param name="unique">Whether the index should be unique</param>
-		/// <returns>Zero on success.</returns>
-		public Task<int> CreateIndexAsync (string indexName, string tableName, string columnName, bool unique = false)
+		public UniTask<int> CreateIndexAsync (string indexName, string tableName, string columnName, bool unique = false)
 		{
 			return WriteAsync (conn => conn.CreateIndex (indexName, tableName, columnName, unique));
 		}
@@ -516,8 +410,7 @@ namespace SQLite
 		/// <param name="tableName">Name of the database table</param>
 		/// <param name="columnNames">An array of column names to index</param>
 		/// <param name="unique">Whether the index should be unique</param>
-		/// <returns>Zero on success.</returns>
-		public Task<int> CreateIndexAsync (string tableName, string[] columnNames, bool unique = false)
+		public UniTask<int> CreateIndexAsync (string tableName, string[] columnNames, bool unique = false)
 		{
 			return WriteAsync (conn => conn.CreateIndex (tableName, columnNames, unique));
 		}
@@ -529,8 +422,7 @@ namespace SQLite
 		/// <param name="tableName">Name of the database table</param>
 		/// <param name="columnNames">An array of column names to index</param>
 		/// <param name="unique">Whether the index should be unique</param>
-		/// <returns>Zero on success.</returns>
-		public Task<int> CreateIndexAsync (string indexName, string tableName, string[] columnNames, bool unique = false)
+		public UniTask<int> CreateIndexAsync (string indexName, string tableName, string[] columnNames, bool unique = false)
 		{
 			return WriteAsync (conn => conn.CreateIndex (indexName, tableName, columnNames, unique));
 		}
@@ -542,15 +434,14 @@ namespace SQLite
 		/// <typeparam name="T">Type to reflect to a database table.</typeparam>
 		/// <param name="property">Property to index</param>
 		/// <param name="unique">Whether the index should be unique</param>
-		/// <returns>Zero on success.</returns>
-		public Task<int> CreateIndexAsync<T> (Expression<Func<T, object>> property, bool unique = false)
+		public UniTask<int> CreateIndexAsync<T> (Expression<Func<T, object>> property, bool unique = false)
 		{
 			return WriteAsync (conn => conn.CreateIndex (property, unique));
 		}
 
 		/// <summary>
-		/// Inserts the given object and (and updates its
-		/// auto incremented primary key if it has one).
+		/// Inserts the given object and retrieves its
+		/// auto incremented primary key if it has one.
 		/// </summary>
 		/// <param name="obj">
 		/// The object to insert.
@@ -558,7 +449,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAsync (object obj)
+		public UniTask<int> InsertAsync (object obj)
 		{
 			return WriteAsync (conn => conn.Insert (obj));
 		}
@@ -577,7 +468,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAsync (object obj, Type objType)
+		public UniTask<int> InsertAsync (object obj, Type objType)
 		{
 			return WriteAsync (conn => conn.Insert (obj, objType));
 		}
@@ -596,7 +487,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAsync (object obj, string extra)
+		public UniTask<int> InsertAsync (object obj, string extra)
 		{
 			return WriteAsync (conn => conn.Insert (obj, extra));
 		}
@@ -618,7 +509,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAsync (object obj, string extra, Type objType)
+		public UniTask<int> InsertAsync (object obj, string extra, Type objType)
 		{
 			return WriteAsync (conn => conn.Insert (obj, extra, objType));
 		}
@@ -637,7 +528,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows modified.
 		/// </returns>
-		public Task<int> InsertOrReplaceAsync (object obj)
+		public UniTask<int> InsertOrReplaceAsync (object obj)
 		{
 			return WriteAsync (conn => conn.InsertOrReplace (obj));
 		}
@@ -659,7 +550,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows modified.
 		/// </returns>
-		public Task<int> InsertOrReplaceAsync (object obj, Type objType)
+		public UniTask<int> InsertOrReplaceAsync (object obj, Type objType)
 		{
 			return WriteAsync (conn => conn.InsertOrReplace (obj, objType));
 		}
@@ -675,7 +566,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows updated.
 		/// </returns>
-		public Task<int> UpdateAsync (object obj)
+		public UniTask<int> UpdateAsync (object obj)
 		{
 			return WriteAsync (conn => conn.Update (obj));
 		}
@@ -694,7 +585,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows updated.
 		/// </returns>
-		public Task<int> UpdateAsync (object obj, Type objType)
+		public UniTask<int> UpdateAsync (object obj, Type objType)
 		{
 			return WriteAsync (conn => conn.Update (obj, objType));
 		}
@@ -711,7 +602,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows modified.
 		/// </returns>
-		public Task<int> UpdateAllAsync (IEnumerable objects, bool runInTransaction = true)
+		public UniTask<int> UpdateAllAsync (IEnumerable objects, bool runInTransaction = true)
 		{
 			return WriteAsync (conn => conn.UpdateAll (objects, runInTransaction));
 		}
@@ -725,7 +616,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows deleted.
 		/// </returns>
-		public Task<int> DeleteAsync (object objectToDelete)
+		public UniTask<int> DeleteAsync (object objectToDelete)
 		{
 			return WriteAsync (conn => conn.Delete (objectToDelete));
 		}
@@ -742,7 +633,7 @@ namespace SQLite
 		/// <typeparam name='T'>
 		/// The type of object.
 		/// </typeparam>
-		public Task<int> DeleteAsync<T> (object primaryKey)
+		public UniTask<int> DeleteAsync<T> (object primaryKey)
 		{
 			return WriteAsync (conn => conn.Delete<T> (primaryKey));
 		}
@@ -759,7 +650,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of objects deleted.
 		/// </returns>
-		public Task<int> DeleteAsync (object primaryKey, TableMapping map)
+		public UniTask<int> DeleteAsync (object primaryKey, TableMapping map)
 		{
 			return WriteAsync (conn => conn.Delete (primaryKey, map));
 		}
@@ -775,7 +666,7 @@ namespace SQLite
 		/// <typeparam name='T'>
 		/// The type of objects to delete.
 		/// </typeparam>
-		public Task<int> DeleteAllAsync<T> ()
+		public UniTask<int> DeleteAllAsync<T> ()
 		{
 			return WriteAsync (conn => conn.DeleteAll<T> ());
 		}
@@ -791,7 +682,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of objects deleted.
 		/// </returns>
-		public Task<int> DeleteAllAsync (TableMapping map)
+		public UniTask<int> DeleteAllAsync (TableMapping map)
 		{
 			return WriteAsync (conn => conn.DeleteAll (map));
 		}
@@ -801,7 +692,7 @@ namespace SQLite
 		/// </summary>
 		/// <param name="destinationDatabasePath">Path to backup file.</param>
 		/// <param name="databaseName">The name of the database to backup (usually "main").</param>
-		public Task BackupAsync (string destinationDatabasePath, string databaseName = "main")
+		public UniTask BackupAsync (string destinationDatabasePath, string databaseName = "main")
 		{
 			return WriteAsync (conn => {
 				conn.Backup (destinationDatabasePath, databaseName);
@@ -821,7 +712,7 @@ namespace SQLite
 		/// The object with the given primary key. Throws a not found exception
 		/// if the object is not found.
 		/// </returns>
-		public Task<T> GetAsync<T> (object pk)
+		public UniTask<T> GetAsync<T> (object pk)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.Get<T> (pk));
@@ -842,7 +733,7 @@ namespace SQLite
 		/// The object with the given primary key. Throws a not found exception
 		/// if the object is not found.
 		/// </returns>
-		public Task<object> GetAsync (object pk, TableMapping map)
+		public UniTask<object> GetAsync (object pk, TableMapping map)
 		{
 			return ReadAsync (conn => conn.Get (pk, map));
 		}
@@ -858,7 +749,7 @@ namespace SQLite
 		/// The object that matches the given predicate. Throws a not found exception
 		/// if the object is not found.
 		/// </returns>
-		public Task<T> GetAsync<T> (Expression<Func<T, bool>> predicate)
+		public UniTask<T> GetAsync<T> (Expression<Func<T, bool>> predicate)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.Get<T> (predicate));
@@ -876,7 +767,7 @@ namespace SQLite
 		/// The object with the given primary key or null
 		/// if the object is not found.
 		/// </returns>
-		public Task<T> FindAsync<T> (object pk)
+		public UniTask<T> FindAsync<T> (object pk)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.Find<T> (pk));
@@ -897,7 +788,7 @@ namespace SQLite
 		/// The object with the given primary key or null
 		/// if the object is not found.
 		/// </returns>
-		public Task<object> FindAsync (object pk, TableMapping map)
+		public UniTask<object> FindAsync (object pk, TableMapping map)
 		{
 			return ReadAsync (conn => conn.Find (pk, map));
 		}
@@ -913,7 +804,7 @@ namespace SQLite
 		/// The object that matches the given predicate or null
 		/// if the object is not found.
 		/// </returns>
-		public Task<T> FindAsync<T> (Expression<Func<T, bool>> predicate)
+		public UniTask<T> FindAsync<T> (Expression<Func<T, bool>> predicate)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.Find<T> (predicate));
@@ -933,7 +824,7 @@ namespace SQLite
 		/// The object that matches the given predicate or null
 		/// if the object is not found.
 		/// </returns>
-		public Task<T> FindWithQueryAsync<T> (string query, params object[] args)
+		public UniTask<T> FindWithQueryAsync<T> (string query, params object[] args)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.FindWithQuery<T> (query, args));
@@ -956,7 +847,7 @@ namespace SQLite
 		/// The object that matches the given predicate or null
 		/// if the object is not found.
 		/// </returns>
-		public Task<object> FindWithQueryAsync (TableMapping map, string query, params object[] args)
+		public UniTask<object> FindWithQueryAsync (TableMapping map, string query, params object[] args)
 		{
 			return ReadAsync (conn => conn.FindWithQuery (map, query, args));
 		}
@@ -974,7 +865,7 @@ namespace SQLite
 		/// The mapping represents the schema of the columns of the database and contains 
 		/// methods to set and get properties of objects.
 		/// </returns>
-		public Task<TableMapping> GetMappingAsync (Type type, CreateFlags createFlags = CreateFlags.None)
+		public UniTask<TableMapping> GetMappingAsync (Type type, CreateFlags createFlags = CreateFlags.None)
 		{
 			return ReadAsync (conn => conn.GetMapping (type, createFlags));
 		}
@@ -989,7 +880,7 @@ namespace SQLite
 		/// The mapping represents the schema of the columns of the database and contains 
 		/// methods to set and get properties of objects.
 		/// </returns>
-		public Task<TableMapping> GetMappingAsync<T> (CreateFlags createFlags = CreateFlags.None)
+		public UniTask<TableMapping> GetMappingAsync<T> (CreateFlags createFlags = CreateFlags.None)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.GetMapping<T> (createFlags));
@@ -1000,7 +891,7 @@ namespace SQLite
 		/// </summary>
 		/// <returns>The columns contains in the table.</returns>
 		/// <param name="tableName">Table name.</param>
-		public Task<List<SQLiteConnection.ColumnInfo>> GetTableInfoAsync (string tableName)
+		public UniTask<List<SQLiteConnection.ColumnInfo>> GetTableInfoAsync (string tableName)
 		{
 			return ReadAsync (conn => conn.GetTableInfo (tableName));
 		}
@@ -1022,7 +913,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows modified in the database as a result of this execution.
 		/// </returns>
-		public Task<int> ExecuteAsync (string query, params object[] args)
+		public UniTask<int> ExecuteAsync (string query, params object[] args)
 		{
 			return WriteAsync (conn => conn.Execute (query, args));
 		}
@@ -1038,7 +929,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAllAsync (IEnumerable objects, bool runInTransaction = true)
+		public UniTask<int> InsertAllAsync (IEnumerable objects, bool runInTransaction = true)
 		{
 			return WriteAsync (conn => conn.InsertAll (objects, runInTransaction));
 		}
@@ -1058,7 +949,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAllAsync (IEnumerable objects, string extra, bool runInTransaction = true)
+		public UniTask<int> InsertAllAsync (IEnumerable objects, string extra, bool runInTransaction = true)
 		{
 			return WriteAsync (conn => conn.InsertAll (objects, extra, runInTransaction));
 		}
@@ -1078,7 +969,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows added to the table.
 		/// </returns>
-		public Task<int> InsertAllAsync (IEnumerable objects, Type objType, bool runInTransaction = true)
+		public UniTask<int> InsertAllAsync (IEnumerable objects, Type objType, bool runInTransaction = true)
 		{
 			return WriteAsync (conn => conn.InsertAll (objects, objType, runInTransaction));
 		}
@@ -1093,9 +984,9 @@ namespace SQLite
 		/// of operations on the connection but should never call <see cref="SQLiteConnection.Commit"/> or
 		/// <see cref="SQLiteConnection.Commit"/>.
 		/// </param>
-		public Task RunInTransactionAsync (Action<SQLiteConnection> action)
+		public UniTask RunInTransactionAsync (Action<SQLiteConnection> action)
 		{
-			return TransactAsync<object> (conn => {
+			return WriteAsync<object> (conn => {
 				conn.BeginTransaction ();
 				try {
 					action (conn);
@@ -1143,7 +1034,7 @@ namespace SQLite
 		/// <returns>
 		/// The number of rows modified in the database as a result of this execution.
 		/// </returns>
-		public Task<T> ExecuteScalarAsync<T> (string query, params object[] args)
+		public UniTask<T> ExecuteScalarAsync<T> (string query, params object[] args)
 		{
 			return WriteAsync (conn => {
 				var command = conn.CreateCommand (query, args);
@@ -1164,31 +1055,12 @@ namespace SQLite
 		/// Arguments to substitute for the occurences of '?' in the query.
 		/// </param>
 		/// <returns>
-		/// A list with one result for each row returned by the query.
+		/// An enumerable with one result for each row returned by the query.
 		/// </returns>
-		public Task<List<T>> QueryAsync<T> (string query, params object[] args)
+		public UniTask<List<T>> QueryAsync<T> (string query, params object[] args)
 			where T : new()
 		{
 			return ReadAsync (conn => conn.Query<T> (query, args));
-		}
-
-		/// <summary>
-		/// Creates a SQLiteCommand given the command text (SQL) with arguments. Place a '?'
-		/// in the command text for each of the arguments and then executes that command.
-		/// It returns the first column of each row of the result.
-		/// </summary>
-		/// <param name="query">
-		/// The fully escaped SQL.
-		/// </param>
-		/// <param name="args">
-		/// Arguments to substitute for the occurences of '?' in the query.
-		/// </param>
-		/// <returns>
-		/// A list with one result for the first column of each row returned by the query.
-		/// </returns>
-		public Task<List<T>> QueryScalarsAsync<T> (string query, params object[] args)
-		{
-			return ReadAsync (conn => conn.QueryScalars<T> (query, args));
 		}
 
 		/// <summary>
@@ -1211,7 +1083,7 @@ namespace SQLite
 		/// <returns>
 		/// An enumerable with one result for each row returned by the query.
 		/// </returns>
-		public Task<List<object>> QueryAsync (TableMapping map, string query, params object[] args)
+		public UniTask<List<object>> QueryAsync (TableMapping map, string query, params object[] args)
 		{
 			return ReadAsync (conn => conn.Query (map, query, args));
 		}
@@ -1233,7 +1105,7 @@ namespace SQLite
 		/// The enumerator will call sqlite3_step on each call to MoveNext, so the database
 		/// connection must remain open for the lifetime of the enumerator.
 		/// </returns>
-		public Task<IEnumerable<T>> DeferredQueryAsync<T> (string query, params object[] args)
+		public UniTask<IEnumerable<T>> DeferredQueryAsync<T> (string query, params object[] args)
 			where T : new()
 		{
 			return ReadAsync (conn => (IEnumerable<T>)conn.DeferredQuery<T> (query, args).ToList ());
@@ -1261,7 +1133,7 @@ namespace SQLite
 		/// The enumerator will call sqlite3_step on each call to MoveNext, so the database
 		/// connection must remain open for the lifetime of the enumerator.
 		/// </returns>
-		public Task<IEnumerable<object>> DeferredQueryAsync (TableMapping map, string query, params object[] args)
+		public UniTask<IEnumerable<object>> DeferredQueryAsync (TableMapping map, string query, params object[] args)
 		{
 			return ReadAsync (conn => (IEnumerable<object>)conn.DeferredQuery (map, query, args).ToList ());
 		}
@@ -1283,24 +1155,24 @@ namespace SQLite
 			_innerQuery = innerQuery;
 		}
 
-		Task<U> ReadAsync<U> (Func<SQLiteConnectionWithLock, U> read)
+		UniTask<U> ReadAsync<U> (Func<SQLiteConnectionWithLock, U> read)
 		{
-			return Task.Factory.StartNew (() => {
+			return UniTask.RunOnThreadPool (() => {
 				var conn = (SQLiteConnectionWithLock)_innerQuery.Connection;
 				using (conn.Lock ()) {
 					return read (conn);
 				}
-			}, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+			});
 		}
 
-		Task<U> WriteAsync<U> (Func<SQLiteConnectionWithLock, U> write)
+		UniTask<U> WriteAsync<U> (Func<SQLiteConnectionWithLock, U> write)
 		{
-			return Task.Factory.StartNew (() => {
+			return UniTask.RunOnThreadPool (() => {
 				var conn = (SQLiteConnectionWithLock)_innerQuery.Connection;
 				using (conn.Lock ()) {
 					return write (conn);
 				}
-			}, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+			});
 		}
 
 		/// <summary>
@@ -1362,7 +1234,7 @@ namespace SQLite
 		/// <summary>
 		/// Queries the database and returns the results as a List.
 		/// </summary>
-		public Task<List<T>> ToListAsync ()
+		public UniTask<List<T>> ToListAsync ()
 		{
 			return ReadAsync (conn => _innerQuery.ToList ());
 		}
@@ -1370,7 +1242,7 @@ namespace SQLite
 		/// <summary>
 		/// Queries the database and returns the results as an array.
 		/// </summary>
-		public Task<T[]> ToArrayAsync ()
+		public UniTask<T[]> ToArrayAsync ()
 		{
 			return ReadAsync (conn => _innerQuery.ToArray ());
 		}
@@ -1378,7 +1250,7 @@ namespace SQLite
 		/// <summary>
 		/// Execute SELECT COUNT(*) on the query
 		/// </summary>
-		public Task<int> CountAsync ()
+		public UniTask<int> CountAsync ()
 		{
 			return ReadAsync (conn => _innerQuery.Count ());
 		}
@@ -1386,7 +1258,7 @@ namespace SQLite
 		/// <summary>
 		/// Execute SELECT COUNT(*) on the query with an additional WHERE clause.
 		/// </summary>
-		public Task<int> CountAsync (Expression<Func<T, bool>> predExpr)
+		public UniTask<int> CountAsync (Expression<Func<T, bool>> predExpr)
 		{
 			return ReadAsync (conn => _innerQuery.Count (predExpr));
 		}
@@ -1394,7 +1266,7 @@ namespace SQLite
 		/// <summary>
 		/// Returns the element at a given index
 		/// </summary>
-		public Task<T> ElementAtAsync (int index)
+		public UniTask<T> ElementAtAsync (int index)
 		{
 			return ReadAsync (conn => _innerQuery.ElementAt (index));
 		}
@@ -1402,7 +1274,7 @@ namespace SQLite
 		/// <summary>
 		/// Returns the first element of this query.
 		/// </summary>
-		public Task<T> FirstAsync ()
+		public UniTask<T> FirstAsync ()
 		{
 			return ReadAsync (conn => _innerQuery.First ());
 		}
@@ -1410,7 +1282,7 @@ namespace SQLite
 		/// <summary>
 		/// Returns the first element of this query, or null if no element is found.
 		/// </summary>
-		public Task<T> FirstOrDefaultAsync ()
+		public UniTask<T> FirstOrDefaultAsync ()
 		{
 			return ReadAsync (conn => _innerQuery.FirstOrDefault ());
 		}
@@ -1418,7 +1290,7 @@ namespace SQLite
 		/// <summary>
 		/// Returns the first element of this query that matches the predicate.
 		/// </summary>
-		public Task<T> FirstAsync (Expression<Func<T, bool>> predExpr)
+		public UniTask<T> FirstAsync (Expression<Func<T, bool>> predExpr)
 		{
 			return ReadAsync (conn => _innerQuery.First (predExpr));
 		}
@@ -1426,7 +1298,7 @@ namespace SQLite
 		/// <summary>
 		/// Returns the first element of this query that matches the predicate.
 		/// </summary>
-		public Task<T> FirstOrDefaultAsync (Expression<Func<T, bool>> predExpr)
+		public UniTask<T> FirstOrDefaultAsync (Expression<Func<T, bool>> predExpr)
 		{
 			return ReadAsync (conn => _innerQuery.FirstOrDefault (predExpr));
 		}
@@ -1434,7 +1306,7 @@ namespace SQLite
 		/// <summary>
 		/// Delete all the rows that match this query and the given predicate.
 		/// </summary>
-		public Task<int> DeleteAsync (Expression<Func<T, bool>> predExpr)
+		public UniTask<int> DeleteAsync (Expression<Func<T, bool>> predExpr)
 		{
 			return WriteAsync (conn => _innerQuery.Delete (predExpr));
 		}
@@ -1442,40 +1314,49 @@ namespace SQLite
 		/// <summary>
 		/// Delete all the rows that match this query.
 		/// </summary>
-		public Task<int> DeleteAsync ()
+		public UniTask<int> DeleteAsync ()
 		{
 			return WriteAsync (conn => _innerQuery.Delete ());
 		}
 	}
 
-	class SQLiteConnectionPool
+	public class SQLiteConnectionPool
 	{
 		class Entry
 		{
-			public SQLiteConnectionWithLock Connection { get; private set; }
+			WeakReference<SQLiteConnectionWithLock> connection;
 
 			public SQLiteConnectionString ConnectionString { get; }
-
-			public object TransactionLock { get; } = new object ();
 
 			public Entry (SQLiteConnectionString connectionString)
 			{
 				ConnectionString = connectionString;
-				Connection = new SQLiteConnectionWithLock (ConnectionString);
+			}
 
-				// If the database is FullMutex, then we don't need to bother locking
-				if (ConnectionString.OpenFlags.HasFlag (SQLiteOpenFlags.FullMutex)) {
-					Connection.SkipLock = true;
+			public SQLiteConnectionWithLock Connect ()
+			{
+				SQLiteConnectionWithLock c = null;
+				var wc = connection;
+				if (wc == null || !wc.TryGetTarget (out c)) {
+					c = new SQLiteConnectionWithLock (ConnectionString);
+
+					// If the database is FullMutex, then we don't need to bother locking
+					if (ConnectionString.OpenFlags.HasFlag (SQLiteOpenFlags.FullMutex)) {
+						c.SkipLock = true;
+					}
+
+					connection = new WeakReference<SQLiteConnectionWithLock> (c);
 				}
+				return c;
 			}
 
 			public void Close ()
 			{
-				var wc = Connection;
-				Connection = null;
-				if (wc != null) {
-					wc.Close ();
+				var wc = connection;
+				if (wc != null && wc.TryGetTarget (out var c)) {
+					c.Close ();
 				}
+				connection = null;
 			}
 		}
 
@@ -1495,23 +1376,15 @@ namespace SQLite
 
 		public SQLiteConnectionWithLock GetConnection (SQLiteConnectionString connectionString)
 		{
-			return GetConnectionAndTransactionLock (connectionString, out var _);
-		}
-
-		public SQLiteConnectionWithLock GetConnectionAndTransactionLock (SQLiteConnectionString connectionString, out object transactionLock)
-		{
 			var key = connectionString.UniqueKey;
 			Entry entry;
 			lock (_entriesLock) {
 				if (!_entries.TryGetValue (key, out entry)) {
-					// The opens the database while we're locked
-					// This is to ensure another thread doesn't get an unopened database
 					entry = new Entry (connectionString);
 					_entries[key] = entry;
 				}
-				transactionLock = entry.TransactionLock;
-				return entry.Connection;
 			}
+			return entry.Connect ();
 		}
 
 		public void CloseConnection (SQLiteConnectionString connectionString)
