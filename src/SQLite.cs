@@ -324,6 +324,8 @@ namespace SQLite
 		/// <value>The date time style.</value>
 		internal System.Globalization.DateTimeStyles DateTimeStyle { get; private set; }
 
+		public GetCustomConverter getCustomConverter;
+
 #if USE_SQLITEPCL_RAW && !NO_SQLITEPCL_RAW_BATTERIES
 		static SQLiteConnection ()
 		{
@@ -3043,6 +3045,8 @@ namespace SQLite
 		}
 	}
 
+	public delegate Func<object, object> GetCustomConverter(TableMapping.Column col);
+
 	public partial class SQLiteCommand
 	{
 		SQLiteConnection _conn;
@@ -3139,13 +3143,45 @@ namespace SQLite
 					for (int i = 0; i < cols.Length; i++) {
 						var name = SQLite3.ColumnName16 (stmt, i);
 						cols[i] = map.FindColumn (name);
-						if (cols[i] != null)
-							if (getSetter != null) {
-								fastColumnSetters[i] = (Action<object, Sqlite3Statement, int>)getSetter.Invoke (null, new object[] { _conn, cols[i] });
+						if (cols[i] != null) {
+							var customConverter = _conn.getCustomConverter(cols[i]);
+							if (customConverter != null) {
+								Type clrType = cols[i].GetMemberType ();
+								fastColumnSetters[i] = FastColumnSetter.CreateTypedSetterDelegate<T, object> (cols[i], (s,i)=> customConverter(GetRawValue(s, i)));
+
+								object GetRawValue(Sqlite3Statement stmt, int index)
+								{
+									var clrTypeInfo = clrType.GetTypeInfo ();
+									if (clrTypeInfo.IsGenericType && clrTypeInfo.GetGenericTypeDefinition () == typeof (Nullable<>)) {
+										clrType = clrTypeInfo.GenericTypeArguments[0];
+										clrTypeInfo = clrType.GetTypeInfo ();
+									}
+									
+									if (clrType == typeof (Int32)) {
+										return SQLite3.ColumnInt (stmt, index);
+									}
+									else if (clrType == typeof (Boolean)) {
+										return SQLite3.ColumnInt (stmt, index) == 1;
+									}
+									else if (clrType == typeof (double)) {
+										return SQLite3.ColumnDouble (stmt, index);
+									}
+									else if (clrType == typeof (float)) {
+										return (float)SQLite3.ColumnDouble (stmt, index);
+									} else {
+										return SQLite3.ColumnString (stmt, index);
+									}
+								}
+
+							} else {
+								if (getSetter != null) {
+									fastColumnSetters[i] = (Action<object, Sqlite3Statement, int>)getSetter.Invoke (null, new object[] { _conn, cols[i] });
+								}
+								else {
+									fastColumnSetters[i] = FastColumnSetter.GetFastSetter<T> (_conn, cols[i]);
+								}
 							}
-							else {
-								fastColumnSetters[i] = FastColumnSetter.GetFastSetter<T> (_conn, cols[i]);
-							}
+						}
 					}
 				}
 
@@ -3508,7 +3544,6 @@ namespace SQLite
 				clrType = clrTypeInfo.GenericTypeArguments[0];
 				clrTypeInfo = clrType.GetTypeInfo ();
 			}
-
 			if (clrType == typeof (String)) {
 				fastSetter = CreateTypedSetterDelegate<T, string> (column, (stmt, index) => {
 					return SQLite3.ColumnString (stmt, index);
@@ -3694,7 +3729,7 @@ namespace SQLite
 		/// <param name="column">The column mapping that identifies the target member of the destination object</param>
 		/// <param name="getColumnValue">A lambda that can be used to retrieve the column value at query-time</param>
 		/// <returns>A strongly-typed delegate</returns>
-		private static Action<object, Sqlite3Statement, int> CreateTypedSetterDelegate<ObjectType, ColumnMemberType> (TableMapping.Column column, Func<Sqlite3Statement, int, ColumnMemberType> getColumnValue)
+		internal static Action<object, Sqlite3Statement, int> CreateTypedSetterDelegate<ObjectType, ColumnMemberType> (TableMapping.Column column, Func<Sqlite3Statement, int, ColumnMemberType> getColumnValue)
 		{
 			Action<ObjectType, ColumnMemberType> setProperty = null;
 			if (column.PropertyInfo != null) {
