@@ -1,0 +1,12 @@
+
+{
+	"name": "sqlite-net",
+	"displayName": "Sqlite.net",
+	"version": "1.0.0",
+	"unity": "2018.1",
+	"description": "Modified to support Fields instead of Property",
+	"keywords": ["sqlite"],
+	"category": "",
+	"dependencies": {
+	}
+}
